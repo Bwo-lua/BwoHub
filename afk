@@ -1,93 +1,385 @@
+-- // AFK Evade Script - Enhanced UI
+-- // Toggle GUI: Right Control
+
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
+-- // Load Evade Event
 task.spawn(function()
     pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/gumanba/Scripts/main/EvadeEvent"))()
     end)
 end)
 
+-- // Destroy old GUI if re-running
+if LocalPlayer.PlayerGui:FindFirstChild("BaoBelUI") then
+    LocalPlayer.PlayerGui.BaoBelUI:Destroy()
+end
+
+-- // Services
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BaoBel"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Name = "BaoBelUI"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainContainer"
-MainFrame.Size = UDim2.new(1, 0, 1, 0)
-MainFrame.BackgroundTransparency = 1
-MainFrame.Parent = ScreenGui
+-- // State
+local isClickActive = false
+local isMinimized = false
+local clickCount = 0
 
+-- // Helper: Tween
+local function tween(obj, props, duration, style, dir)
+    local info = TweenInfo.new(duration or 0.25, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out)
+    TweenService:Create(obj, info, props):Play()
+end
+
+-- // Helper: UICorner
+local function addCorner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
+    c.Parent = parent
+    return c
+end
+
+-- // Helper: UIStroke
+local function addStroke(parent, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or Color3.fromRGB(80, 80, 80)
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0
+    s.Parent = parent
+    return s
+end
+
+-- ============================================================
+-- // Main Panel
+-- ============================================================
+local Panel = Instance.new("Frame")
+Panel.Name = "Panel"
+Panel.Size = UDim2.new(0, 220, 0, 210)
+Panel.Position = UDim2.new(0.05, 0, 0.35, 0)
+Panel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+Panel.BorderSizePixel = 0
+Panel.Active = true
+Panel.Draggable = true
+Panel.Parent = ScreenGui
+addCorner(Panel, 12)
+addStroke(Panel, Color3.fromRGB(60, 60, 75), 1.5)
+
+-- // Gradient overlay
+local grad = Instance.new("UIGradient")
+grad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 28, 38)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 14, 20)),
+})
+grad.Rotation = 135
+grad.Parent = Panel
+
+-- // Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 38)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = Panel
+addCorner(TitleBar, 12)
+
+-- Fix bottom corners of title bar
+local TitleFix = Instance.new("Frame")
+TitleFix.Size = UDim2.new(1, 0, 0.5, 0)
+TitleFix.Position = UDim2.new(0, 0, 0.5, 0)
+TitleFix.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+TitleFix.BorderSizePixel = 0
+TitleFix.Parent = TitleBar
+
+-- // Accent line under title
+local AccentLine = Instance.new("Frame")
+AccentLine.Size = UDim2.new(1, 0, 0, 2)
+AccentLine.Position = UDim2.new(0, 0, 1, -2)
+AccentLine.BackgroundColor3 = Color3.fromRGB(100, 80, 220)
+AccentLine.BorderSizePixel = 0
+AccentLine.Parent = TitleBar
+local accentGrad = Instance.new("UIGradient")
+accentGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 80, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(80, 180, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 80, 255)),
+})
+accentGrad.Parent = AccentLine
+
+-- // Title Label
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -70, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "🎮  BaoBel AFK"
+TitleLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 13
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+
+-- // Minimize Button
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 26, 0, 22)
+MinBtn.Position = UDim2.new(1, -60, 0.5, -11)
+MinBtn.BackgroundColor3 = Color3.fromRGB(255, 190, 50)
+MinBtn.Text = "—"
+MinBtn.TextColor3 = Color3.fromRGB(30, 20, 0)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 12
+MinBtn.Parent = TitleBar
+addCorner(MinBtn, 6)
+
+-- // Close (Hide) Button
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0, 26, 0, 22)
+HideBtn.Position = UDim2.new(1, -30, 0.5, -11)
+HideBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+HideBtn.Text = "✕"
+HideBtn.TextColor3 = Color3.new(1, 1, 1)
+HideBtn.Font = Enum.Font.GothamBold
+HideBtn.TextSize = 12
+HideBtn.Parent = TitleBar
+addCorner(HideBtn, 6)
+
+-- ============================================================
+-- // Content Frame
+-- ============================================================
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Size = UDim2.new(1, 0, 1, -40)
+Content.Position = UDim2.new(0, 0, 0, 40)
+Content.BackgroundTransparency = 1
+Content.Parent = Panel
+
+local ContentLayout = Instance.new("UIListLayout")
+ContentLayout.Padding = UDim.new(0, 8)
+ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ContentLayout.Parent = Content
+
+local ContentPadding = Instance.new("UIPadding")
+ContentPadding.PaddingTop = UDim.new(0, 10)
+ContentPadding.PaddingLeft = UDim.new(0, 10)
+ContentPadding.PaddingRight = UDim.new(0, 10)
+ContentPadding.Parent = Content
+
+-- ============================================================
+-- // Status Row
+-- ============================================================
+local StatusRow = Instance.new("Frame")
+StatusRow.Size = UDim2.new(1, 0, 0, 30)
+StatusRow.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+StatusRow.BorderSizePixel = 0
+StatusRow.Parent = Content
+addCorner(StatusRow, 8)
+
+local StatusDot = Instance.new("Frame")
+StatusDot.Size = UDim2.new(0, 10, 0, 10)
+StatusDot.Position = UDim2.new(0, 10, 0.5, -5)
+StatusDot.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+StatusDot.BorderSizePixel = 0
+StatusDot.Parent = StatusRow
+addCorner(StatusDot, 8)
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, -28, 1, 0)
+StatusLabel.Position = UDim2.new(0, 26, 0, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Auto Clicker: Idle"
+StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 12
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = StatusRow
+
+-- ============================================================
+-- // Toggle Button
+-- ============================================================
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(1, 0, 0, 42)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+ToggleBtn.Text = "▶  Enable Auto Clicker"
+ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 13
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Parent = Content
+addCorner(ToggleBtn, 10)
+addStroke(ToggleBtn, Color3.fromRGB(60, 60, 80), 1)
+
+-- // Click Counter
+local CounterRow = Instance.new("Frame")
+CounterRow.Size = UDim2.new(1, 0, 0, 28)
+CounterRow.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+CounterRow.BorderSizePixel = 0
+CounterRow.Parent = Content
+addCorner(CounterRow, 8)
+
+local CounterLabel = Instance.new("TextLabel")
+CounterLabel.Size = UDim2.new(0.5, 0, 1, 0)
+CounterLabel.Position = UDim2.new(0, 10, 0, 0)
+CounterLabel.BackgroundTransparency = 1
+CounterLabel.Text = "Clicks sent:"
+CounterLabel.TextColor3 = Color3.fromRGB(130, 130, 155)
+CounterLabel.Font = Enum.Font.Gotham
+CounterLabel.TextSize = 11
+CounterLabel.TextXAlignment = Enum.TextXAlignment.Left
+CounterLabel.Parent = CounterRow
+
+local CounterValue = Instance.new("TextLabel")
+CounterValue.Size = UDim2.new(0.5, -10, 1, 0)
+CounterValue.Position = UDim2.new(0.5, 0, 0, 0)
+CounterValue.BackgroundTransparency = 1
+CounterValue.Text = "0"
+CounterValue.TextColor3 = Color3.fromRGB(100, 180, 255)
+CounterValue.Font = Enum.Font.GothamBold
+CounterValue.TextSize = 12
+CounterValue.TextXAlignment = Enum.TextXAlignment.Right
+CounterValue.Parent = CounterRow
+
+-- // Hotkey hint
+local HotkeyHint = Instance.new("TextLabel")
+HotkeyHint.Size = UDim2.new(1, 0, 0, 20)
+HotkeyHint.BackgroundTransparency = 1
+HotkeyHint.Text = "[ RCtrl ] — Toggle Panel"
+HotkeyHint.TextColor3 = Color3.fromRGB(70, 70, 90)
+HotkeyHint.Font = Enum.Font.Gotham
+HotkeyHint.TextSize = 10
+HotkeyHint.Parent = Content
+
+-- ============================================================
+-- // Target Dot (draggable click target)
+-- ============================================================
 local TargetCircle = Instance.new("Frame")
-local UICornerDot = Instance.new("UICorner")
-local TargetLabel = Instance.new("TextLabel")
-
 TargetCircle.Name = "TargetCircle"
-TargetCircle.Parent = MainFrame
-TargetCircle.Size = UDim2.new(0, 50, 0, 50)
+TargetCircle.Size = UDim2.new(0, 48, 0, 48)
 TargetCircle.Position = UDim2.new(0.68, 0, 0.55, 0)
 TargetCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-TargetCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-TargetCircle.BackgroundTransparency = 0.5
+TargetCircle.BackgroundColor3 = Color3.fromRGB(100, 80, 220)
+TargetCircle.BackgroundTransparency = 0.35
 TargetCircle.Active = true
-TargetCircle.Draggable = true 
+TargetCircle.Draggable = true
+TargetCircle.Parent = ScreenGui
+addCorner(TargetCircle, 50)
+addStroke(TargetCircle, Color3.fromRGB(140, 110, 255), 2, 0.2)
 
-UICornerDot.CornerRadius = UDim.new(1, 0)
-UICornerDot.Parent = TargetCircle
+local TargetIcon = Instance.new("TextLabel")
+TargetIcon.Size = UDim2.new(1, 0, 0.55, 0)
+TargetIcon.Position = UDim2.new(0, 0, 0, 2)
+TargetIcon.BackgroundTransparency = 1
+TargetIcon.Text = "✚"
+TargetIcon.TextColor3 = Color3.new(1, 1, 1)
+TargetIcon.Font = Enum.Font.GothamBold
+TargetIcon.TextSize = 16
+TargetIcon.Parent = TargetCircle
 
-TargetLabel.Size = UDim2.new(1, 0, 1, 0)
+local TargetLabel = Instance.new("TextLabel")
+TargetLabel.Size = UDim2.new(1, 0, 0.45, 0)
+TargetLabel.Position = UDim2.new(0, 0, 0.55, 0)
 TargetLabel.BackgroundTransparency = 1
-TargetLabel.Text = "Beo"
-TargetLabel.TextColor3 = Color3.new(1, 1, 1)
-TargetLabel.TextSize = 10
+TargetLabel.Text = "TARGET"
+TargetLabel.TextColor3 = Color3.fromRGB(200, 190, 255)
+TargetLabel.Font = Enum.Font.GothamBold
+TargetLabel.TextSize = 8
 TargetLabel.Parent = TargetCircle
 
-local ClickBtn = Instance.new("TextButton")
-local UICornerClick = Instance.new("UICorner")
-ClickBtn.Name = "AutoClickToggle"
-ClickBtn.Parent = MainFrame
-ClickBtn.Size = UDim2.new(0, 160, 0, 45)
-ClickBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
-ClickBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ClickBtn.Text = "Auto Clicker: OFF"
-ClickBtn.TextColor3 = Color3.new(1, 1, 1)
-ClickBtn.Font = Enum.Font.GothamBold
-ClickBtn.TextSize = 14
-ClickBtn.Draggable = true
-UICornerClick.Parent = ClickBtn
+-- ============================================================
+-- // Logic
+-- ============================================================
 
-local isClickActive = false
-ClickBtn.MouseButton1Click:Connect(function()
+-- Toggle clicker
+ToggleBtn.MouseButton1Click:Connect(function()
     isClickActive = not isClickActive
-    ClickBtn.Text = isClickActive and "Auto Clicker: ON" or "Auto Clicker: OFF"
-    ClickBtn.BackgroundColor3 = isClickActive and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(40, 40, 40)
+
+    if isClickActive then
+        ToggleBtn.Text = "⏹  Disable Auto Clicker"
+        tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(60, 180, 100)})
+        tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(60, 220, 100)})
+        StatusLabel.Text = "Auto Clicker: Active"
+        StatusLabel.TextColor3 = Color3.fromRGB(100, 220, 130)
+        tween(TargetCircle, {BackgroundColor3 = Color3.fromRGB(60, 200, 100), BackgroundTransparency = 0.25})
+    else
+        ToggleBtn.Text = "▶  Enable Auto Clicker"
+        tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(35, 35, 50)})
+        tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(80, 80, 80)})
+        StatusLabel.Text = "Auto Clicker: Idle"
+        StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
+        tween(TargetCircle, {BackgroundColor3 = Color3.fromRGB(100, 80, 220), BackgroundTransparency = 0.35})
+    end
 end)
 
--- Auto-Click Loop
+-- Hover effects on toggle button
+ToggleBtn.MouseEnter:Connect(function()
+    if not isClickActive then
+        tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(50, 50, 70)}, 0.15)
+    end
+end)
+ToggleBtn.MouseLeave:Connect(function()
+    if not isClickActive then
+        tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(35, 35, 50)}, 0.15)
+    end
+end)
+
+-- Auto-click loop
 task.spawn(function()
     while true do
         if isClickActive then
-            local targetX = TargetCircle.AbsolutePosition.X + (TargetCircle.AbsoluteSize.X / 2)
-            local targetY = TargetCircle.AbsolutePosition.Y + (TargetCircle.AbsoluteSize.Y / 2)
+            local cx = TargetCircle.AbsolutePosition.X + (TargetCircle.AbsoluteSize.X / 2)
+            local cy = TargetCircle.AbsolutePosition.Y + (TargetCircle.AbsoluteSize.Y / 2)
             pcall(function()
-                VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 1)
-                task.wait(0.1)
-                VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 1)
+                VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+                task.wait(0.08)
+                VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
             end)
-            TargetCircle.BackgroundColor3 = Color3.new(1, 1, 1)
-            task.wait(0.1)
-            TargetCircle.BackgroundColor3 = Color3.new(1, 0, 0)
+            clickCount += 1
+            CounterValue.Text = tostring(clickCount)
+            -- Flash target dot
+            tween(TargetCircle, {BackgroundTransparency = 0}, 0.05)
+            task.wait(0.08)
+            tween(TargetCircle, {BackgroundTransparency = 0.25}, 0.1)
         end
         task.wait(0.5)
     end
 end)
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
-        MainFrame.Visible = not MainFrame.Visible
+-- Minimize
+MinBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        tween(Panel, {Size = UDim2.new(0, 220, 0, 38)}, 0.25, Enum.EasingStyle.Quart)
+        Content.Visible = false
+        MinBtn.Text = "□"
+    else
+        Content.Visible = true
+        tween(Panel, {Size = UDim2.new(0, 220, 0, 210)}, 0.25, Enum.EasingStyle.Quart)
+        MinBtn.Text = "—"
     end
 end)
 
-print("Evade Lite Loaded! Use Right-Control to toggle the menu.")
+-- Hide/Show panel (close button hides, hotkey shows)
+HideBtn.MouseButton1Click:Connect(function()
+    Panel.Visible = false
+    TargetCircle.Visible = false
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        Panel.Visible = not Panel.Visible
+        TargetCircle.Visible = Panel.Visible
+    end
+end)
+
+-- Animate accent line
+task.spawn(function()
+    local t = 0
+    while true do
+        t += 0.02
+        accentGrad.Offset = Vector2.new(math.sin(t) * 0.5, 0)
+        task.wait(0.03)
+    end
+end)
