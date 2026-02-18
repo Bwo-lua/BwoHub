@@ -1,0 +1,93 @@
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+task.spawn(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gumanba/Scripts/main/EvadeEvent"))()
+    end)
+end)
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BaoBel"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainContainer"
+MainFrame.Size = UDim2.new(1, 0, 1, 0)
+MainFrame.BackgroundTransparency = 1
+MainFrame.Parent = ScreenGui
+
+local TargetCircle = Instance.new("Frame")
+local UICornerDot = Instance.new("UICorner")
+local TargetLabel = Instance.new("TextLabel")
+
+TargetCircle.Name = "TargetCircle"
+TargetCircle.Parent = MainFrame
+TargetCircle.Size = UDim2.new(0, 50, 0, 50)
+TargetCircle.Position = UDim2.new(0.68, 0, 0.55, 0)
+TargetCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+TargetCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+TargetCircle.BackgroundTransparency = 0.5
+TargetCircle.Active = true
+TargetCircle.Draggable = true 
+
+UICornerDot.CornerRadius = UDim.new(1, 0)
+UICornerDot.Parent = TargetCircle
+
+TargetLabel.Size = UDim2.new(1, 0, 1, 0)
+TargetLabel.BackgroundTransparency = 1
+TargetLabel.Text = "Beo"
+TargetLabel.TextColor3 = Color3.new(1, 1, 1)
+TargetLabel.TextSize = 10
+TargetLabel.Parent = TargetCircle
+
+local ClickBtn = Instance.new("TextButton")
+local UICornerClick = Instance.new("UICorner")
+ClickBtn.Name = "AutoClickToggle"
+ClickBtn.Parent = MainFrame
+ClickBtn.Size = UDim2.new(0, 160, 0, 45)
+ClickBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
+ClickBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ClickBtn.Text = "Auto Clicker: OFF"
+ClickBtn.TextColor3 = Color3.new(1, 1, 1)
+ClickBtn.Font = Enum.Font.GothamBold
+ClickBtn.TextSize = 14
+ClickBtn.Draggable = true
+UICornerClick.Parent = ClickBtn
+
+local isClickActive = false
+ClickBtn.MouseButton1Click:Connect(function()
+    isClickActive = not isClickActive
+    ClickBtn.Text = isClickActive and "Auto Clicker: ON" or "Auto Clicker: OFF"
+    ClickBtn.BackgroundColor3 = isClickActive and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(40, 40, 40)
+end)
+
+-- Auto-Click Loop
+task.spawn(function()
+    while true do
+        if isClickActive then
+            local targetX = TargetCircle.AbsolutePosition.X + (TargetCircle.AbsoluteSize.X / 2)
+            local targetY = TargetCircle.AbsolutePosition.Y + (TargetCircle.AbsoluteSize.Y / 2)
+            pcall(function()
+                VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 1)
+                task.wait(0.1)
+                VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 1)
+            end)
+            TargetCircle.BackgroundColor3 = Color3.new(1, 1, 1)
+            task.wait(0.1)
+            TargetCircle.BackgroundColor3 = Color3.new(1, 0, 0)
+        end
+        task.wait(0.5)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+print("Evade Lite Loaded! Use Right-Control to toggle the menu.")
